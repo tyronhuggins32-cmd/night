@@ -92,7 +92,7 @@
  function sphere(parent,name,x,y,z,sx,sy,sz,material){const o=new THREE.Mesh(new THREE.SphereGeometry(1,24,18),material);o.name=name;o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
  function limb(parent,name,a,b,r1,r2,material){const v1=new THREE.Vector3(...a),v2=new THREE.Vector3(...b),d=v2.clone().sub(v1);const o=new THREE.Mesh(new THREE.CylinderGeometry(r2,r1,d.length(),18),material);o.name=name;o.position.copy(v1).add(v2).multiplyScalar(.5);o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());o.castShadow=true;parent.add(o);return o}
  function boxer(x,shortMat,gloveMat,flip){
-  const root=new THREE.Group();root.position.set(x,2.35,0);if(flip)root.rotation.y=Math.PI;scene.add(root);
+  const root=new THREE.Group();root.position.set(x,.15,0);if(flip)root.rotation.y=Math.PI;scene.add(root);
   const torso=new THREE.Group();torso.position.y=0;root.add(torso);
   sphere(torso,'pelvis',0,-.15,0,.53,.34,.32,skin);
   sphere(torso,'ribcage',0,.55,0,.69,.88,.38,skinLight);
@@ -126,7 +126,7 @@
    legs.push({side});
   }
   // shorts extend to upper thighs; realistic separate legs remain visible below
-  return {root,torso,head,arms,legs,baseX:x,baseY:2.35,guard:false,anim:'idle',t:0,flip};
+  return {root,torso,head,arms,legs,baseX:x,baseY:.15,guard:false,anim:'idle',t:0,flip};
  }
  const floor=new THREE.Mesh(new THREE.CylinderGeometry(6.4,6.4,.18,64),mat(0x25262b,.9));floor.position.set(0,0,0);floor.receiveShadow=true;scene.add(floor);
  const matTop=mat(0x36343a,.82);const top=new THREE.Mesh(new THREE.CylinderGeometry(6.2,6.2,.06,64),matTop);top.position.set(0,.1,0);scene.add(top);
@@ -135,7 +135,7 @@
  const player=boxer(-2.25,blue,gloveBlue,false), rival=boxer(2.25,red,gloveRed,true);
  function resize(){const w=ring.clientWidth,h=ring.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  new ResizeObserver(resize).observe(ring);resize();
- function animateBox(b,dt){b.t+=dt;const t=b.t;b.root.position.y=b.baseY+Math.sin(t*3)*.025;b.torso.rotation.z=0;b.torso.rotation.y=0;b.torso.position.y=2.55+Math.sin(t*3)*.025;
+ function animateBox(b,dt){b.t+=dt;const t=b.t;b.root.position.y=b.baseY+Math.sin(t*3)*.025;b.torso.rotation.z=0;b.torso.rotation.y=0;b.torso.position.y=2.35+Math.sin(t*3)*.025;
   b.arms.forEach(a=>{a.glove.position.set(a.side*.7,a.side===1?-.17:.02,a.side===1?.47:.4);});
   if(b.anim==='jab'){const a=b.arms[0];a.glove.position.x=-.7;a.glove.position.z=1.0+Math.sin(t*18)*.25;b.torso.rotation.y=-.12}
   if(b.anim==='cross'){const a=b.arms[1];a.glove.position.z=1.15+Math.sin(t*13)*.18;b.torso.rotation.y=.28}
