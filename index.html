@@ -93,7 +93,7 @@
  function limb(parent,name,a,b,r1,r2,material){const v1=new THREE.Vector3(...a),v2=new THREE.Vector3(...b),d=v2.clone().sub(v1);const o=new THREE.Mesh(new THREE.CylinderGeometry(r2,r1,d.length(),18),material);o.name=name;o.position.copy(v1).add(v2).multiplyScalar(.5);o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());o.castShadow=true;parent.add(o);return o}
  function boxer(x,shortMat,gloveMat,flip){
   const root=new THREE.Group();root.position.set(x,.15,0);root.rotation.y=flip?-Math.PI/2:Math.PI/2;scene.add(root);
-  const torso=new THREE.Group();torso.position.y=0;root.add(torso);
+  const torso=new THREE.Group();root.add(torso);
   sphere(torso,'pelvis',0,-.15,0,.53,.34,.32,skin);
   sphere(torso,'ribcage',0,.55,0,.69,.88,.38,skinLight);
   sphere(torso,'chest',0,.88,.015,.72,.39,.4,skinLight);
@@ -110,23 +110,24 @@
   const belt=new THREE.Mesh(new THREE.BoxGeometry(1.08,.09,.7),white);belt.position.set(0,-.14,0);torso.add(belt);
   const arms=[],legs=[];
   for(const side of [-1,1]){
-   const shoulder=sphere(torso,'shoulder',side*.68,.88,0,.28,.3,.29,skinLight);
-   const upper=limb(torso,'upper-arm',[side*.7,.82,0],[side*.82,.28,.05],.22,.16,skinLight);
-   const elbow=sphere(torso,'elbow',side*.82,.28,.05,.17,.17,.17,skin);
-   const fore=limb(torso,'forearm',[side*.82,.28,.05],[side*.7,-.08,.28],.16,.13,skinLight);
-   const wrist=sphere(torso,'wrist',side*.7,-.08,.28,.14,.15,.14,skin);
-   const glove=sphere(torso,'glove',side*.7,-.17,.47,.25,.23,.28,gloveMat);
-   const cuff=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.15,18),white);cuff.position.set(side*.7,-.08,.34);torso.add(cuff);
-   arms.push({side,shoulder,upper,elbow,fore,wrist,glove,cuff});
-   const hip=side*.31;
-   limb(torso,'thigh',[hip,-.55,0],[side*.35,-1.35,.02],.25,.19,skinLight);
-   sphere(torso,'knee',side*.35,-1.37,.02,.19,.2,.2,skin);
-   limb(torso,'calf',[side*.35,-1.42,.02],[side*.38,-2.18,.05],.17,.12,skinLight);
-   sphere(torso,'boxing-boot',side*.38,-2.27,.19,.22,.14,.4,shoe);
-   legs.push({side});
+   const shoulderPivot=new THREE.Group();shoulderPivot.position.set(side*.68,.88,0);torso.add(shoulderPivot);
+   sphere(shoulderPivot,'deltoid',0,0,0,.29,.3,.29,skinLight);
+   limb(shoulderPivot,'upper-arm',[0,-.08,0],[side*.12,-.58,.05],.22,.16,skinLight);
+   const elbowPivot=new THREE.Group();elbowPivot.position.set(side*.12,-.58,.05);shoulderPivot.add(elbowPivot);
+   sphere(elbowPivot,'elbow',0,0,0,.17,.17,.17,skin);
+   limb(elbowPivot,'forearm',[0,0,0],[-side*.08,-.43,.2],.16,.13,skinLight);
+   sphere(elbowPivot,'wrist',-side*.08,-.43,.2,.14,.15,.14,skin);
+   const cuff=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.15,18),white);cuff.position.set(-side*.08,-.39,.2);elbowPivot.add(cuff);
+   const glove=sphere(elbowPivot,'glove',-side*.08,-.53,.38,.25,.23,.28,gloveMat);
+   arms.push({side,shoulderPivot,elbowPivot,glove,baseShoulder:side===-1?-.2:.18});
+   const hipPivot=new THREE.Group();hipPivot.position.set(side*.31,-.48,0);torso.add(hipPivot);
+   limb(hipPivot,'thigh',[0,0,0],[side*.04,-.82,.02],.25,.19,skinLight);
+   sphere(hipPivot,'knee',side*.04,-.84,.02,.19,.2,.2,skin);
+   limb(hipPivot,'calf',[side*.04,-.88,.02],[side*.07,-1.58,.05],.17,.12,skinLight);
+   sphere(hipPivot,'boxing-boot',side*.07,-1.68,.19,.22,.14,.4,shoe);
+   legs.push({side,hipPivot});
   }
-  // shorts extend to upper thighs; realistic separate legs remain visible below
-  return {root,torso,head,arms,legs,baseX:x,baseY:.15,guard:false,anim:'idle',t:0,flip};
+  return {root,torso,head,arms,legs,baseX:x,baseY:.15,baseZ:0,guard:false,anim:'idle',t:0,flip};
  }
  const floor=new THREE.Mesh(new THREE.CylinderGeometry(6.4,6.4,.18,64),mat(0x25262b,.9));floor.position.set(0,0,0);floor.receiveShadow=true;scene.add(floor);
  const matTop=mat(0x36343a,.82);const top=new THREE.Mesh(new THREE.CylinderGeometry(6.2,6.2,.06,64),matTop);top.position.set(0,.1,0);scene.add(top);
@@ -135,21 +136,29 @@
  const player=boxer(-1.65,blue,gloveBlue,false), rival=boxer(1.65,red,gloveRed,true);
  function resize(){const w=ring.clientWidth,h=ring.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  new ResizeObserver(resize).observe(ring);resize();
- function animateBox(b,dt){b.t+=dt;const t=b.t;b.root.position.y=b.baseY+Math.sin(t*3)*.025;b.torso.rotation.z=0;b.torso.rotation.y=0;b.torso.position.y=2.35+Math.sin(t*3)*.025;
-  b.arms.forEach(a=>{a.glove.position.set(a.side*.7,a.side===1?-.17:.02,a.side===1?.47:.4);});
-  if(b.anim==='jab'){const a=b.arms[0];a.glove.position.x=-.7;a.glove.position.z=1.0+Math.sin(t*18)*.25;b.torso.rotation.y=-.12}
-  if(b.anim==='cross'){const a=b.arms[1];a.glove.position.z=1.15+Math.sin(t*13)*.18;b.torso.rotation.y=.28}
-  if(b.anim==='hook'){const a=b.arms[1];a.glove.position.set(.95,.15,.75);b.torso.rotation.y=.38;b.torso.rotation.z=-.13}
-  if(b.anim==='uppercut'){const a=b.arms[1];a.glove.position.set(.6,.55,.62);b.torso.rotation.z=-.1}
-  if(b.guard){b.arms[0].glove.position.set(-.38,.52,.58);b.arms[1].glove.position.set(.38,.56,.58)}
-  if(b.anim==='dodge'){b.root.rotation.z=Math.sin(t*16)*.16;b.root.position.x=b.baseX+Math.sin(t*16)*.28}
-  else if(b.anim==='hit'){b.root.rotation.z=.16;b.root.position.x=b.baseX+.16}
-  else if(b.anim==='moveL')b.root.position.x=b.baseX-.25;
-  else if(b.anim==='moveR')b.root.position.x=b.baseX+.25;
-  if(b.anim!=='idle'&&t>(b.duration||.32)){b.anim='idle';b.t=0;b.root.rotation.z=0;b.root.position.x=b.baseX}
+ function animateBox(b,dt){
+  b.t+=dt;const t=b.t,active=b.anim!=='idle';
+  b.torso.position.y=2.35+Math.sin(t*3)*.025;
+  b.torso.rotation.set(0,0,0);b.head.rotation.set(0,0,0);
+  b.arms.forEach((a,i)=>{a.shoulderPivot.rotation.set(0,0,a.baseShoulder);a.elbowPivot.rotation.set(0,0,0);});
+  b.legs.forEach((l,i)=>{l.hipPivot.rotation.set(0,0,Math.sin(t*7+(i*Math.PI))*0.035);});
+  if(b.anim==='jab'){const a=b.arms[0];a.shoulderPivot.rotation.z=-1.22;a.elbowPivot.rotation.z=-.18;b.torso.rotation.y=-.18;b.torso.rotation.z=-.05;b.head.rotation.z=-.04;}
+  if(b.anim==='cross'){const a=b.arms[1];a.shoulderPivot.rotation.z=-1.45;a.elbowPivot.rotation.z=-.12;b.torso.rotation.y=.38;b.torso.rotation.z=.08;b.head.rotation.y=.08;}
+  if(b.anim==='hook'){const a=b.arms[1];a.shoulderPivot.rotation.z=-.72;a.shoulderPivot.rotation.y=-.85;a.elbowPivot.rotation.z=-1.0;b.torso.rotation.y=.62;b.torso.rotation.z=-.12;}
+  if(b.anim==='uppercut'){const a=b.arms[1];a.shoulderPivot.rotation.z=-2.0;a.shoulderPivot.rotation.y=-.2;a.elbowPivot.rotation.z=.5;b.torso.rotation.y=.32;b.torso.position.y+=.13;b.legs.forEach(l=>l.hipPivot.rotation.z=-.08);}
+  if(b.guard||b.anim==='guard'){b.arms[0].shoulderPivot.rotation.z=-1.85;b.arms[1].shoulderPivot.rotation.z=-1.85;b.arms[0].elbowPivot.rotation.z=-.5;b.arms[1].elbowPivot.rotation.z=-.5;}
+  if(b.anim==='dodge'){b.root.rotation.z=Math.sin(t*13)*.13;b.root.position.x=b.baseX+Math.sin(t*13)*.22;b.torso.rotation.z=.2;b.head.rotation.z=-.15;}
+  else if(b.anim==='hit'){b.root.rotation.z=.13;b.root.position.x=b.baseX+.12;b.torso.rotation.z=.18;b.head.rotation.z=-.16;}
+  else if(b.anim==='moveL'||b.anim==='moveR'||b.anim==='moveF'||b.anim==='moveB'){
+   const dir=b.anim==='moveL'?-1:b.anim==='moveR'?1:b.anim==='moveF'?1:-1;
+   b.torso.rotation.z=Math.sin(t*18)*.035;b.legs.forEach((l,i)=>{l.hipPivot.rotation.z=Math.sin(t*16+i*Math.PI)*.48;});
+   b.root.position.y=b.baseY+Math.abs(Math.sin(t*16))*.035;
+  }
+  if(b.anim==='knockdown'){b.root.rotation.z=Math.min(1.35,t*2.4);b.torso.rotation.z=.2;}
+  if(b.anim!=='idle'&&t>(b.duration||.38)){b.anim='idle';b.t=0;b.root.rotation.z=0;b.root.position.x=b.baseX;b.root.position.y=b.baseY;}
  }
  let last=performance.now(),cameraKick=0;function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;animateBox(player,dt);animateBox(rival,dt);const mid=(player.root.position.x+rival.root.position.x)/2;const gap=Math.abs(rival.root.position.x-player.root.position.x);camera.position.x+=(mid-camera.position.x)*Math.min(1,dt*3.4);const targetZ=10.2+Math.max(0,gap-2.2)*1.15;camera.position.z+=(targetZ-camera.position.z)*Math.min(1,dt*2.4);camera.position.y+=(3.55-camera.position.y)*Math.min(1,dt*2.4);cameraKick*=Math.max(0,1-dt*8);camera.position.x+=Math.sin(now*.09)*cameraKick;camera.position.y+=Math.cos(now*.12)*cameraKick*.55;camera.lookAt(mid,1.9,0);renderer.render(scene,camera)}requestAnimationFrame(loop);
- window.ringside3D={act(name,who='player'){const b=who==='cpu'?rival:player;b.anim=name;b.t=0;b.duration=name==='knockdown'?1.4:.38;if(name==='guard')b.guard=true;else if(name==='unguard')b.guard=false;if(name==='knockdown'){b.root.rotation.z=.9;b.root.position.y=b.baseY-1.1}},move(dir){const next=THREE.MathUtils.clamp(player.root.position.x+dir*.48,-3.25,1.05);player.root.position.x=next;player.baseX=next;if(rival.root.position.x-player.root.position.x>2.65){const rx=THREE.MathUtils.clamp(rival.root.position.x-.22,-1.1,3.25);rival.root.position.x=rx;rival.baseX=rx}},advanceCPU(){if(rival.root.position.x-player.root.position.x>2.45){rival.root.position.x=Math.max(player.root.position.x+1.75,rival.root.position.x-.28);rival.baseX=rival.root.position.x}},distance(){return Math.abs(rival.root.position.x-player.root.position.x)},impact(){cameraKick=Math.min(.22,cameraKick+.13)},reset(){player.root.position.set(-1.65,player.baseY,0);rival.root.position.set(1.65,rival.baseY,0);player.baseX=-1.65;rival.baseX=1.65;[player,rival].forEach((b,i)=>{b.root.rotation.set(0,i? -Math.PI/2:Math.PI/2,0);b.anim='idle';b.guard=false;b.t=0})}};
+ window.ringside3D={act(name,who='player'){const b=who==='cpu'?rival:player;b.anim=name;b.t=0;b.duration=name==='knockdown'?1.4:name==='dodge'?.48:name.startsWith('move')?.28:.48;if(name==='guard')b.guard=true;else if(name==='unguard')b.guard=false;if(name==='knockdown'){b.root.rotation.z=.9;b.root.position.y=b.baseY-1.1}},move(dx,dz=0){const nx=THREE.MathUtils.clamp(player.root.position.x+dx*.52,-4.35,4.35);const nz=THREE.MathUtils.clamp(player.root.position.z+dz*.52,-2.25,2.25);player.root.position.x=nx;player.root.position.z=nz;player.baseX=nx;player.baseZ=nz;},advanceCPU(){const dx=player.root.position.x-rival.root.position.x,dz=player.root.position.z-rival.root.position.z;if(Math.hypot(dx,dz)>2.0){rival.root.position.x+=Math.sign(dx)*.11;rival.root.position.z+=Math.sign(dz)*.09;rival.baseX=rival.root.position.x;rival.baseZ=rival.root.position.z}},distance(){return Math.hypot(rival.root.position.x-player.root.position.x,rival.root.position.z-player.root.position.z)},impact(){cameraKick=Math.min(.3,cameraKick+.16)},reset(){player.root.position.set(-1.65,player.baseY,0);rival.root.position.set(1.65,rival.baseY,0);player.baseX=-1.65;player.baseZ=0;rival.baseX=1.65;rival.baseZ=0;[player,rival].forEach((b,i)=>{b.root.rotation.set(0,i?-Math.PI/2:Math.PI/2,0);b.anim='idle';b.guard=false;b.t=0})}};
 })();
 </script>
 
